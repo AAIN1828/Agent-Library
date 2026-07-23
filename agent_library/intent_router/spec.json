@@ -1,0 +1,40 @@
+{
+  "agent_id": "intent_router",
+  "name": "Intent Router",
+  "role": "Question routing / intent classification",
+  "description": "Analyzes the user question against SQL table metadata and decides SQL-based, Semantic-based, Both-dependent, or Both-independent analysis, handing off to Quin (Sql_Generator) or Eryl (Eryl_agent).",
+  "flow_name": "Routing",
+  "version": "1.0.0",
+  "entry_point": {
+    "module": "agent",
+    "factory": "build_agents",
+    "entry_agent": "routing_agent",
+    "runner": "IntentRouterRunner.run"
+  },
+  "sub_agents": [
+    {
+      "name": "routing_agent",
+      "type": "AssistantAgent",
+      "purpose": "Classify question and set analysis_type + next_agent.",
+      "max_consecutive_auto_reply": 3
+    }
+  ],
+  "handoff_targets": ["Sql_Generator", "Eryl_agent"],
+  "dependencies": {
+    "python_packages": ["pyautogen", "openai"],
+    "external_resources": [
+      "Azure OpenAI",
+      "Optional QUIN_TABLE_SCHEMAS / QUIN_TABLE_SCHEMAS_PATH for SQL routing accuracy"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    { "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME", "secret": false, "required": true },
+    { "name": "AZURE_OPENAI_API_BASE", "secret": false, "required": true },
+    { "name": "AZURE_OPENAI_API_KEY", "secret": true, "required": true },
+    { "name": "AZURE_OPENAI_API_VERSION", "secret": false, "required": true },
+    { "name": "QUIN_TABLE_SCHEMAS_PATH", "secret": false, "required": false },
+    { "name": "QUIN_TABLE_SCHEMAS", "secret": false, "required": false }
+  ],
+  "statefulness": "build_agents() is a factory — call once per conversation/session."
+}

@@ -1,0 +1,51 @@
+{
+  "agent_id": "intake_gateway",
+  "description": "Question intake and Responsible AI safety gate. Runs azure_safety_check then Responsible_AI_Agent before routing.",
+  "entrypoint": "IntakeGatewayRunner.run",
+  "inputs": ["question"],
+  "outputs": [
+    "initial_question",
+    "rai_check_passed",
+    "risk_score",
+    "severity",
+    "next_agent",
+    "azure_content_safety",
+    "blocked_reason"
+  ],
+  "input_schema": {
+    "fields": ["question"]
+  },
+  "output_schema": {
+    "fields": [
+      "initial_question",
+      "rai_check_passed",
+      "risk_score",
+      "severity",
+      "next_agent",
+      "azure_content_safety",
+      "blocked_reason"
+    ]
+  },
+  "flow_input_contract": {
+    "description": "Raw user question entering the unified Q&A workflow.",
+    "type": "object",
+    "required": ["question"],
+    "properties": {
+      "question": { "type": "string" }
+    }
+  },
+  "flow_output_contract": {
+    "description": "RAI evaluation result. next_agent is routing_agent on pass, user_proxy on fail.",
+    "type": "object",
+    "required": ["initial_question", "rai_check_passed", "next_agent"],
+    "properties": {
+      "initial_question": { "type": "string" },
+      "rai_check_passed": { "type": "boolean" },
+      "risk_score": { "type": "number" },
+      "severity": { "type": "string" },
+      "next_agent": { "type": "string", "enum": ["routing_agent", "user_proxy"] },
+      "blocked_reason": { "type": ["string", "null"] },
+      "azure_content_safety": { "type": "object" }
+    }
+  }
+}

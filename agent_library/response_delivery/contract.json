@@ -1,0 +1,50 @@
+{
+  "agent_id": "response_delivery",
+  "description": "Polishes the grounded draft into the final user response with confidence and post-generation evaluation scores.",
+  "entrypoint": "ResponseDeliveryRunner.run",
+  "inputs": ["initial_question", "analysis_type", "final_answer"],
+  "outputs": [
+    "delivered_answer",
+    "final_answer",
+    "composite_score",
+    "status",
+    "confidence",
+    "helpfulness",
+    "relevance",
+    "groundedness",
+    "next_agent"
+  ],
+  "input_schema": {
+    "fields": ["initial_question", "analysis_type", "final_answer"]
+  },
+  "output_schema": {
+    "fields": [
+      "delivered_answer",
+      "final_answer",
+      "composite_score",
+      "status",
+      "confidence",
+      "next_agent"
+    ]
+  },
+  "flow_input_contract": {
+    "type": "object",
+    "required": ["initial_question", "final_answer"],
+    "properties": {
+      "initial_question": { "type": "string" },
+      "final_answer": { "type": "string" },
+      "analysis_type": { "type": "string" }
+    }
+  },
+  "flow_output_contract": {
+    "type": "object",
+    "required": ["delivered_answer", "status", "confidence"],
+    "properties": {
+      "delivered_answer": { "type": "string" },
+      "composite_score": { "type": "number" },
+      "status": { "type": "string", "enum": ["PASS", "FAIL"] },
+      "confidence": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+      "next_agent": { "type": "string", "const": "user_proxy" }
+    }
+  }
+}

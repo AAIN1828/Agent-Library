@@ -1,0 +1,31 @@
+{
+  "agent_id": "grounded_answer",
+  "description": "Synthesizes a single grounded draft answer from SQL and document evidence.",
+  "entrypoint": "GroundedAnswerRunner.run",
+  "inputs": ["initial_question", "analysis_type", "query_answer", "llm_answer"],
+  "outputs": ["final_answer", "reasoning", "Inference", "query_answer", "llm_answer", "next_agent"],
+  "input_schema": {
+    "fields": ["initial_question", "analysis_type", "query_answer", "llm_answer"]
+  },
+  "output_schema": {
+    "fields": ["final_answer", "reasoning", "Inference", "query_answer", "llm_answer", "next_agent"]
+  },
+  "flow_input_contract": {
+    "type": "object",
+    "required": ["initial_question"],
+    "properties": {
+      "initial_question": { "type": "string" },
+      "query_answer": { "type": "string" },
+      "llm_answer": { "type": "string" }
+    }
+  },
+  "flow_output_contract": {
+    "type": "object",
+    "required": ["final_answer"],
+    "properties": {
+      "final_answer": { "type": "string" },
+      "reasoning": { "type": "string" },
+      "next_agent": { "type": "string", "const": "response_delivery" }
+    }
+  }
+}

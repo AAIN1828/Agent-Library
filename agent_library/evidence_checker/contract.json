@@ -1,0 +1,53 @@
+{
+  "agent_id": "evidence_checker",
+  "description": "Reconciles SQL and document evidence, flags conflicts, and scores evidence strength before synthesis.",
+  "entrypoint": "EvidenceCheckerRunner.run",
+  "inputs": ["initial_question", "analysis_type", "query_answer", "llm_answer", "query", "inference"],
+  "outputs": [
+    "conflict_detected",
+    "conflicts",
+    "evidence_strength",
+    "groundedness",
+    "completeness",
+    "faithfulness",
+    "ready_for_synthesis",
+    "next_agent",
+    "feedback"
+  ],
+  "input_schema": {
+    "fields": ["initial_question", "analysis_type", "query_answer", "llm_answer"]
+  },
+  "output_schema": {
+    "fields": [
+      "conflict_detected",
+      "conflicts",
+      "evidence_strength",
+      "groundedness",
+      "completeness",
+      "faithfulness",
+      "ready_for_synthesis",
+      "next_agent",
+      "feedback"
+    ]
+  },
+  "flow_input_contract": {
+    "type": "object",
+    "required": ["initial_question"],
+    "properties": {
+      "initial_question": { "type": "string" },
+      "analysis_type": { "type": "string" },
+      "query_answer": { "type": "string" },
+      "llm_answer": { "type": "string" }
+    }
+  },
+  "flow_output_contract": {
+    "type": "object",
+    "required": ["ready_for_synthesis", "evidence_strength", "next_agent"],
+    "properties": {
+      "conflict_detected": { "type": "boolean" },
+      "evidence_strength": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+      "ready_for_synthesis": { "type": "boolean" },
+      "next_agent": { "type": "string" }
+    }
+  }
+}
