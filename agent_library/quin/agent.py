@@ -185,10 +185,19 @@ Form the SQL Query:
     1. Based on the identified fields, construct a valid SQL query.
     2. Ensure that the query matches the metadata schema (i.e., use the correct column names and data types).
     3. Use TOP instead of LIMIT.
+    4. **Table references MUST be 2-part only**: `[schema].[table]` (or `schema.table`).
+       - **Never** emit 3-part names like `[dbo].[Updated_email_dupoint].[Products]` or `dbo.X.Y` — Azure SQL rejects those.
+       - Metadata often looks like `schema = "dbo", table_name = "dbo.Updated_email_dupoint.Products"`.
+         Interpret that as schema=`Updated_email_dupoint`, table=`Products` →
+         `FROM [Updated_email_dupoint].[Products]` (strip a redundant leading `dbo.` from `table_name`, then use the last segment as table and the preceding segment as schema).
+       - If `table_name` has no dotted dataset segment, use the metadata `schema` field + final table name: `[dbo].[Products]`.
 
 Example:
 For a question like "Which city has the largest population?", the expected SQL query would be:
-SELECT TOP 1 city_name, population FROM city_stats ORDER BY population DESC;
+SELECT TOP 1 city_name, population FROM [dbo].[city_stats] ORDER BY population DESC;
+
+For inventory stock against metadata `table_name = "dbo.Updated_email_dupoint.Products"`:
+SELECT SUM([Stock_Quantity]) AS total_stock_available FROM [Updated_email_dupoint].[Products];
 Handle Invalid Queries:
 
 If the question references fields not available in the metadata, or if it's impossible to form a valid SQL query, return:
