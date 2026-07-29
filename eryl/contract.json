@@ -1,0 +1,366 @@
+{
+  "agent_id": "eryl_semantic_rag_agent_chain",
+  "description": "Message contracts for Eryl's semantic flow. Agents emit strict JSON where noted (fenced ```json blocks are stripped by callers before json.loads).",
+  "entrypoint": "ErylChainRunner.run",
+  "inputs": [
+    "initial_question",
+    "analysis_type",
+    "sql_query",
+    "sql_answer",
+    "updated_question"
+  ],
+  "outputs": [
+    "llm_answer",
+    "analysis_type",
+    "updated_question"
+  ],
+  "input_schema": {
+    "fields": [
+      "initial_question",
+      "analysis_type",
+      "sql_query",
+      "sql_answer",
+      "updated_question"
+    ]
+  },
+  "output_schema": {
+    "fields": [
+      "llm_answer",
+      "analysis_type",
+      "updated_question"
+    ]
+  },
+  "flow_input_contract": {
+    "description": "What Eryl expects when entered. Standalone get_answer() takes a plain question string; ErylChainRunner.run accepts the orchestrator-friendly fields below.",
+    "type": "object",
+    "required": [
+      "initial_question"
+    ],
+    "properties": {
+      "initial_question": {
+        "type": "string"
+      },
+      "analysis_type": {
+        "type": "string",
+        "enum": [
+          "Semantic-based",
+          "Both-dependent",
+          "Both-independent"
+        ],
+        "description": "Optional; echoed in runner output for pipeline compatibility. Defaults to Semantic-based."
+      },
+      "sql_query": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Optional; retained for downstream pipeline compatibility only."
+      },
+      "sql_answer": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Optional; retained for downstream pipeline compatibility only."
+      },
+      "updated_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "When present, used as the question instead of initial_question."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "description": "What Eryl hands back once critic_agent passes the answer.",
+    "type": "object",
+    "properties": {
+      "question": {
+        "type": "string"
+      },
+      "llm_answer": {
+        "type": "string"
+      },
+      "analysis_type": {
+        "type": "string"
+      },
+      "updated_question": {
+        "type": "string"
+      }
+    }
+  },
+  "message_contracts": {
+    "Eryl_agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "question",
+          "next_agent"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Question forwarded to extract_context."
+          },
+          "next_agent": {
+            "type": "string",
+            "const": "retriever"
+          }
+        }
+      },
+      "tool_call": {
+        "name": "extract_context",
+        "args": {
+          "question": "string"
+        }
+      }
+    },
+    "retriever": {
+      "output": {
+        "type": "object",
+        "description": "Result of the extract_context tool call.",
+        "properties": {
+          "vector_context": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "llm_answer_maker": {
+      "output": {
+        "type": "string",
+        "description": "Free-text answer grounded strictly in the retrieved context, or the literal sentence 'I do not have enough information to answer this question.' when context is insufficient."
+      }
+    },
+    "critic_agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "question",
+          "llm_answer",
+          "helpfulness",
+          "relevance",
+          "groundedness",
+          "completeness",
+          "faithfulness",
+          "composite_score",
+          "status",
+          "feedback_query"
+        ],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "llm_answer": {
+            "type": "string"
+          },
+          "helpfulness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "relevance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "groundedness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "completeness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "faithfulness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "composite_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "feedback_query": {
+            "type": "string",
+            "description": "'None' on PASS; a focused follow-up question on FAIL."
+          },
+          "feedback_detail": {
+            "type": "string",
+            "description": "Gap explanation on FAIL."
+          }
+        },
+        "trailing_literal_on_pass": "Happy with the answer"
+      }
+    }
+  },
+  "routing_rules": {
+    "user_proxy": "-> Eryl_agent",
+    "Eryl_agent": "-> retriever",
+    "retriever": "-> llm_answer_maker",
+    "llm_answer_maker": "-> critic_agent",
+    "critic_agent": {
+      "contains 'Happy with the answer'": "-> user_proxy (exits Eryl)",
+      "otherwise": "-> Eryl_agent (loop, using feedback_query)"
+    }
+  },
+  "termination": {
+    "critic_agent.is_termination_msg": "True when the raw message contains the literal substring 'Happy with the answer'."
+  },
+  "package_id": "eryl",
+  "name": "Eryl",
+  "role": "Semantic / vector-retrieval analysis agent",
+  "flow_name": "Semantic",
+  "version": "1.1.0",
+  "entry_point": {
+    "module": "agent",
+    "callable": "get_answer",
+    "entry_agent": "Eryl_agent"
+  },
+  "sub_agents": [
+    {
+      "name": "Eryl_agent",
+      "type": "AssistantAgent",
+      "purpose": "Selector agent: forwards the current question (or critic feedback_query on retry) to the retriever via extract_context.",
+      "max_consecutive_auto_reply": 3
+    },
+    {
+      "name": "retriever",
+      "type": "AssistantAgent",
+      "purpose": "Executes extract_context and passes retrieved chunks to llm_answer_maker.",
+      "max_consecutive_auto_reply": 3
+    },
+    {
+      "name": "llm_answer_maker",
+      "type": "AssistantAgent",
+      "purpose": "Generates a detailed answer strictly from the retrieved context; states insufficient-context explicitly rather than guessing.",
+      "max_consecutive_auto_reply": 4
+    },
+    {
+      "name": "critic_agent",
+      "type": "AssistantAgent",
+      "purpose": "Scores the semantic answer on five dimensions; on FAIL produces feedback_query and loops back to Eryl_agent; on PASS appends the literal phrase 'Happy with the answer' and terminates.",
+      "max_consecutive_auto_reply": 5,
+      "termination_signal": "Happy with the answer"
+    }
+  ],
+  "tools": [
+    {
+      "name": "extract_context",
+      "registered_on": "retriever",
+      "registered_for_llm_on": "Eryl_agent",
+      "signature": "async extract_context(question: str = None) -> dict",
+      "description": "Embeds the question (Azure OpenAI) and runs a semantic/vector search against Azure Cognitive Search. Returns {\"vector_context\": [chunk, ...]}."
+    }
+  ],
+  "handoff_targets": [
+    "user_proxy"
+  ],
+  "handoff_note": "user_proxy is owned by the GroupChat in agent.py (standalone) or by the parent orchestrator when ErylChainRunner is used. The SQL-driven query_transformer step has been removed.",
+  "dependencies": {
+    "python_packages": [
+      "azure-search-documents",
+      "openai",
+      "python-dotenv",
+      "ag2>=0.9,<1.0"
+    ],
+    "project_modules": [],
+    "external_resources": [
+      "Azure OpenAI (GPT-4-class chat deployment + embedding deployment)",
+      "Azure Cognitive Search (SearchClient via AZURE_SEARCH_SERVICE_ENDPOINT + AZURE_SEARCH_INDEX_NAME)"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    {
+      "name": "AZURE_OPENAI_API_KEY",
+      "secret": true,
+      "required": true
+    },
+    {
+      "name": "AZURE_OPENAI_API_BASE",
+      "secret": false,
+      "required": true
+    },
+    {
+      "name": "AZURE_OPENAI_API_VERSION",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "EMBEDDING_MODEL_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": true
+    },
+    {
+      "name": "AZURE_SEARCH_SERVICE_ENDPOINT",
+      "secret": false,
+      "required": true
+    },
+    {
+      "name": "AZURE_SEARCH_ENDPOINT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_API_KEY",
+      "secret": true,
+      "required": true
+    },
+    {
+      "name": "AZURE_SEARCH_INDEX_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_SEMANTIC_CONFIG",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_SEMANTIC_CONFIG_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_VECTOR_FIELD_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_DOCUMENT_ID_FIELD_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_SEARCH_CONTENT_FIELD_NAME",
+      "secret": false,
+      "required": false
+    }
+  ],
+  "statefulness": "agent.py builds module-level AssistantAgent instances and a GroupChat at import time. Prefer ErylChainRunner.run / get_answer as the public entrypoint for reuse. build_agents() in agent.py returns the live module-level agents for orchestrator compatibility."
+}
