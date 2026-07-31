@@ -1,0 +1,24 @@
+{
+  "document-ingestion-agent": "document_ingestion",
+  "document_ingestion_agent": "document_ingestion",
+  "entity-extraction-agent": "entity_extraction",
+  "entity_extraction_agent": "entity_extraction",
+  "kyc-policy-completeness-validator": "kyc_validator",
+  "kyc_policy_completeness_validator": "kyc_validator",
+  "missing-information-email-drafter": "missing_information_email_drafter",
+  "missing_information_email_drafter_agent": "missing_information_email_drafter",
+  "quin_sql_agent_chain": "quin",
+  "eryl_semantic_rag_agent_chain": "eryl",
+
+  "intake_gateway": "intake_gateway",
+  "intent_router": "intent_router",
+  "evidence_checker": "evidence_checker",
+  "grounded_answer": "grounded_answer",
+  "response_delivery": "response_delivery",
+
+  "pipeline_intent_classifier": "intent_router",
+  "final_answer_consolidation_agent": "grounded_answer",
+  "final_answer_rewriter": "response_delivery",
+  "question_intake_gateway": "intake_gateway",
+  "evidence_conflict_gateway": "evidence_checker"
+}
