@@ -1,0 +1,100 @@
+{
+  "agent_id": "document_generation",
+  "description": "Instruction-driven in-place PDF text updater. Extracts page text for analysis, LLM-emits exact old→new substring patches, applies overlay edits on the original PDF (images/layout preserved). Does not author documents from scratch.",
+  "entrypoint": "DocumentGenerationRunner.run",
+  "dispatch_output": "updated_pdf_and_applied_patches",
+  "inputs": [
+    "pdf_path",
+    "instruction",
+    "input_pdf_path",
+    "output_pdf_path",
+    "change_instructions",
+    "json_dir"
+  ],
+  "outputs": [
+    "updated_pdf_path",
+    "applied_updates",
+    "proposed_updates",
+    "page_count",
+    "update_count",
+    "artifact_dir",
+    "dispatch_output"
+  ],
+  "input_schema": {
+    "fields": ["pdf_path", "instruction", "output_pdf_path"]
+  },
+  "output_schema": {
+    "fields": [
+      "updated_pdf_path",
+      "applied_updates",
+      "proposed_updates",
+      "page_count",
+      "update_count",
+      "dispatch_output"
+    ]
+  },
+  "flow_input_contract": {
+    "type": "object",
+    "required": ["pdf_path", "instruction"],
+    "properties": {
+      "pdf_path": {
+        "type": "string",
+        "description": "Filesystem path to the source PDF to edit in place."
+      },
+      "input_pdf_path": {
+        "type": ["string", "null"],
+        "description": "Alias for pdf_path."
+      },
+      "instruction": {
+        "type": "string",
+        "description": "Natural-language change instructions describing the desired final text state."
+      },
+      "change_instructions": {
+        "type": ["string", "null"],
+        "description": "Alias for instruction."
+      },
+      "output_pdf_path": {
+        "type": ["string", "null"],
+        "description": "Destination path for the updated PDF; defaults to <stem>_updated.pdf beside the source."
+      },
+      "json_dir": {
+        "type": ["string", "null"],
+        "description": "Optional directory for page-extract and patch JSON artifacts."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "type": "object",
+    "required": ["updated_pdf_path", "applied_updates", "dispatch_output"],
+    "properties": {
+      "updated_pdf_path": {
+        "type": "string",
+        "description": "Path to the modified PDF after in-place overlay edits."
+      },
+      "applied_updates": {
+        "type": "array",
+        "description": "Structured diff of patches that matched and were applied (page, old, new).",
+        "items": {
+          "type": "object",
+          "required": ["page", "old", "new"],
+          "properties": {
+            "page": { "type": "integer", "minimum": 1 },
+            "old": { "type": "string" },
+            "new": { "type": "string" }
+          }
+        }
+      },
+      "proposed_updates": {
+        "type": "array",
+        "description": "Full LLM-proposed patch list before apply filtering."
+      },
+      "page_count": { "type": "integer", "minimum": 0 },
+      "update_count": { "type": "integer", "minimum": 0 },
+      "dispatch_output": {
+        "type": "string",
+        "const": "updated_pdf_and_applied_patches",
+        "description": "Canonical product of this agent: modified PDF path + structured patch list — not a free-form generated document."
+      }
+    }
+  }
+}

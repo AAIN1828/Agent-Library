@@ -1,0 +1,51 @@
+{
+  "agent_id": "document_generation",
+  "name": "PDF In-Place Instruction Updater",
+  "role": "Instruction-driven in-place PDF text patcher",
+  "description": "Edits an existing PDF from natural-language change instructions: page-wise PyMuPDF text extraction (analysis only), Azure OpenAI exact old→new substring patches, overlay application on the original PDF so images/layout/vectors are preserved. Deterministic replacements only — no rebuild, no paraphrasing, no from-scratch document authoring.",
+  "flow_name": "DocumentGeneration",
+  "version": "1.0.0",
+  "entry_point": {
+    "module": "agent",
+    "runner": "DocumentGenerationRunner.run"
+  },
+  "sub_agents": [],
+  "tools": [
+    {
+      "name": "extract_pdf_pages",
+      "registered_on": "python",
+      "signature": "extract_pdf_pages(pdf_path: str) -> list[dict]",
+      "description": "PyMuPDF page-wise text extraction for analysis only."
+    },
+    {
+      "name": "generate_update_patch",
+      "registered_on": "python",
+      "signature": "generate_update_patch(pages_json, instruction) -> list[dict]",
+      "description": "Azure OpenAI JSON patch list of exact old→new replacements."
+    },
+    {
+      "name": "apply_updates_inplace",
+      "registered_on": "python",
+      "signature": "apply_updates_inplace(input_pdf_path, updates, output_pdf_path) -> list[dict]",
+      "description": "Overlay-mask apply of patches on the original PDF."
+    }
+  ],
+  "handoff_targets": ["user_proxy"],
+  "dependencies": {
+    "python_packages": ["pymupdf", "openai"],
+    "external_resources": [
+      "Azure OpenAI chat deployment",
+      "Local PDF file path"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    { "name": "AZURE_OPENAI_API_KEY", "secret": true, "required": true },
+    { "name": "AZURE_OPENAI_API_BASE", "secret": false, "required": false },
+    { "name": "AZURE_OPENAI_ENDPOINT", "secret": false, "required": false },
+    { "name": "AZURE_OPENAI_API_VERSION", "secret": false, "required": false },
+    { "name": "AZURE_OPENAI_DEPLOYMENT", "secret": false, "required": false },
+    { "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME", "secret": false, "required": false }
+  ],
+  "statefulness": "DocumentGenerationRunner.run is stateless per call; Azure client is created inside generate_update_patch."
+}
