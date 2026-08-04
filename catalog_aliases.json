@@ -9,6 +9,20 @@
   "missing_information_email_drafter_agent": "missing_information_email_drafter",
   "quin_sql_agent_chain": "quin",
   "eryl_semantic_rag_agent_chain": "eryl",
+  "patch_generation_agent": "patch_generation",
+  "patch-generation-agent": "patch_generation",
+  "patch_generation": "patch_generation",
+  "patch-generation": "patch_generation",
+
+  "planogram_vision_agent": "planogram_vision",
+  "planogram-vision-agent": "planogram_vision",
+  "planogram_vision": "planogram_vision",
+  "planogram-vision": "planogram_vision",
+
+  "executive_brief_generator_agent": "executive_brief_generator",
+  "executive-brief-generator-agent": "executive_brief_generator",
+  "executive_brief_generator": "executive_brief_generator",
+  "executive-brief-generator": "executive_brief_generator",
 
   "intake_gateway": "intake_gateway",
   "intent_router": "intent_router",

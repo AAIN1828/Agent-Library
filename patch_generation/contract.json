@@ -1,0 +1,285 @@
+{
+  "agent_id": "patch_generation_agent",
+  "description": "Message contracts for Patch Generation. Given page-wise document JSON and a change instruction, the agent emits targeted old/new text patches (JSON). Fenced ```json blocks are stripped by callers before json.loads.",
+  "entrypoint": "PatchGenerationChainRunner.run",
+  "inputs": [
+    "instruction",
+    "pages_json",
+    "initial_question",
+    "updated_question",
+    "document",
+    "analysis_type"
+  ],
+  "outputs": [
+    "updates",
+    "update_count",
+    "summary",
+    "instruction",
+    "analysis_type"
+  ],
+  "input_schema": {
+    "fields": [
+      "instruction",
+      "pages_json",
+      "initial_question",
+      "updated_question",
+      "document",
+      "analysis_type"
+    ]
+  },
+  "output_schema": {
+    "fields": [
+      "updates",
+      "update_count",
+      "summary",
+      "instruction",
+      "analysis_type"
+    ]
+  },
+  "flow_input_contract": {
+    "description": "What Patch Generation expects when entered. Standalone generate_update_patch(pages_json, instruction) is the core call; get_answer / PatchGenerationChainRunner.run accept the orchestrator-friendly fields below.",
+    "type": "object",
+    "required": [
+      "instruction"
+    ],
+    "properties": {
+      "instruction": {
+        "type": "string",
+        "description": "Natural-language description of the document changes to apply."
+      },
+      "pages_json": {
+        "type": [
+          "array",
+          "object",
+          "string",
+          "null"
+        ],
+        "description": "Page-wise document JSON (list of page objects), a single page object, a {\"pages\": [...]} wrapper, or a JSON string of the same."
+      },
+      "document": {
+        "type": [
+          "array",
+          "object",
+          "string",
+          "null"
+        ],
+        "description": "Alias for pages_json."
+      },
+      "initial_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Orchestrator-friendly alias: used as instruction when instruction is omitted."
+      },
+      "updated_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "When present (and instruction omitted), used as the change instruction instead of initial_question."
+      },
+      "analysis_type": {
+        "type": "string",
+        "description": "Optional; echoed in runner output for pipeline compatibility. Defaults to Patch-generation."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "description": "What Patch Generation hands back once generate_update_patch finishes.",
+    "type": "object",
+    "properties": {
+      "instruction": {
+        "type": "string"
+      },
+      "updates": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "old",
+            "new"
+          ],
+          "properties": {
+            "page": {
+              "type": [
+                "number",
+                "string",
+                "null"
+              ]
+            },
+            "section": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "old": {
+              "type": "string",
+              "description": "Exact existing document substring to replace."
+            },
+            "new": {
+              "type": "string",
+              "description": "Replacement text."
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "update_count": {
+        "type": "integer"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "analysis_type": {
+        "type": "string"
+      }
+    }
+  },
+  "message_contracts": {
+    "Patch_Generator": {
+      "input": {
+        "type": "object",
+        "required": [
+          "instruction",
+          "pages_json"
+        ],
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "pages_json": {
+            "type": [
+              "array",
+              "object",
+              "string"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": [
+          "updates"
+        ],
+        "properties": {
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "old",
+                "new"
+              ],
+              "properties": {
+                "page": {
+                  "type": [
+                    "number",
+                    "string",
+                    "null"
+                  ]
+                },
+                "section": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "old": {
+                  "type": "string"
+                },
+                "new": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "routing_rules": {
+    "user_proxy": "-> Patch_Generator",
+    "Patch_Generator": "-> user_proxy (exits Patch Generation)"
+  },
+  "package_id": "patch_generation",
+  "name": "Patch Generation",
+  "role": "Document update-patch generation agent",
+  "flow_name": "PatchGeneration",
+  "version": "1.0.0",
+  "entry_point": {
+    "module": "agent",
+    "callable": "get_answer",
+    "entry_agent": "Patch_Generator"
+  },
+  "sub_agents": [
+    {
+      "name": "Patch_Generator",
+      "type": "function",
+      "purpose": "Single-stage LLM call that turns page-wise document JSON + a change instruction into a filtered list of old/new text patches."
+    }
+  ],
+  "tools": [],
+  "handoff_targets": [
+    "user_proxy"
+  ],
+  "handoff_note": "Single-stage agent: no intermediate GroupChat handoffs. Prefer PatchGenerationChainRunner.run / get_answer / generate_update_patch as the public surface.",
+  "dependencies": {
+    "python_packages": [
+      "openai",
+      "python-dotenv"
+    ],
+    "project_modules": [],
+    "external_resources": [
+      "Azure OpenAI (GPT-class chat deployment via GPT4_LLM_MODEL_DEPLOYMENT_NAME or AZURE_OPENAI_DEPLOYMENT), or OpenAI API (OPENAI_API_KEY + PATCH_GEN_MODEL)"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    {
+      "name": "AZURE_OPENAI_API_KEY",
+      "secret": true,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_BASE",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_VERSION",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "secret": true,
+      "required": false
+    },
+    {
+      "name": "PATCH_GEN_MODEL",
+      "secret": false,
+      "required": false
+    }
+  ],
+  "statefulness": "agent.py builds an LLM client at import time. Prefer PatchGenerationChainRunner.run / get_answer / generate_update_patch as the public entrypoint for reuse. No module-level AssistantAgent instances."
+}

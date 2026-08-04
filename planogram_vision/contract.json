@@ -1,0 +1,308 @@
+{
+  "agent_id": "planogram_vision_agent",
+  "description": "Message contracts for Planogram Vision's shelf-image multi-agent chain. Agents emit strict JSON (fenced ```json blocks are stripped by callers before json.loads). Images are sent as multimodal content (base64 data URLs).",
+  "entrypoint": "PlanogramVisionChainRunner.run",
+  "inputs": [
+    "user_query",
+    "image_paths",
+    "initial_question",
+    "updated_question",
+    "analysis_type"
+  ],
+  "outputs": [
+    "user_query",
+    "final_answer",
+    "reasoning",
+    "analysis_type"
+  ],
+  "input_schema": {
+    "fields": [
+      "user_query",
+      "image_paths",
+      "initial_question",
+      "updated_question",
+      "analysis_type"
+    ]
+  },
+  "output_schema": {
+    "fields": [
+      "user_query",
+      "final_answer",
+      "reasoning",
+      "analysis_type"
+    ]
+  },
+  "flow_input_contract": {
+    "description": "What Planogram Vision expects when entered. Standalone get_answer(user_query, image_paths) takes a query + list of shelf-row image paths; PlanogramVisionChainRunner.run accepts the orchestrator-friendly fields below.",
+    "type": "object",
+    "required": [
+      "user_query",
+      "image_paths"
+    ],
+    "properties": {
+      "user_query": {
+        "type": "string",
+        "description": "Natural-language question about the shelf image(s)."
+      },
+      "image_paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Local file paths for one or more shelf-row images (Row 1, Row 2, ... in order)."
+      },
+      "images": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Alias for image_paths."
+      },
+      "initial_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Orchestrator-friendly alias used as user_query when user_query is omitted."
+      },
+      "updated_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "When present (and user_query omitted), used as the query instead of initial_question."
+      },
+      "analysis_type": {
+        "type": "string",
+        "description": "Optional; echoed in runner output. Defaults to Planogram-vision."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "description": "What Planogram Vision hands back once Final_Answer_Agent finishes.",
+    "type": "object",
+    "properties": {
+      "user_query": {
+        "type": "string"
+      },
+      "final_answer": {
+        "type": "string"
+      },
+      "reasoning": {
+        "type": "string"
+      },
+      "analysis_type": {
+        "type": "string"
+      }
+    }
+  },
+  "message_contracts": {
+    "Routing_Agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "next_agent",
+          "reason"
+        ],
+        "properties": {
+          "next_agent": {
+            "type": "string",
+            "enum": [
+              "Count_Agent",
+              "Generic_Agent"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Count_Agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "row_results",
+          "next_agent"
+        ],
+        "properties": {
+          "row_results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer"
+                },
+                "counts": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "reasoning": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "next_agent": {
+            "type": "string",
+            "const": "Final_Answer_Agent"
+          }
+        }
+      }
+    },
+    "Generic_Agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "Answer",
+          "reasoning",
+          "next_agent"
+        ],
+        "properties": {
+          "Answer": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "string"
+          },
+          "next_agent": {
+            "type": "string",
+            "const": "Final_Answer_Agent"
+          }
+        }
+      }
+    },
+    "Final_Answer_Agent": {
+      "output": {
+        "type": "object",
+        "required": [
+          "user_query",
+          "final_answer",
+          "reasoning"
+        ],
+        "properties": {
+          "user_query": {
+            "type": "string"
+          },
+          "final_answer": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "routing_rules": {
+    "user_proxy": "-> Routing_Agent",
+    "Routing_Agent": {
+      "next_agent == 'Count_Agent'": "-> Count_Agent",
+      "next_agent == 'Generic_Agent'": "-> Generic_Agent"
+    },
+    "Count_Agent": "-> Final_Answer_Agent",
+    "Generic_Agent": "-> Final_Answer_Agent",
+    "Final_Answer_Agent": "-> user_proxy (exits Planogram Vision)"
+  },
+  "package_id": "planogram_vision",
+  "name": "Planogram Vision",
+  "role": "Retail shelf / planogram vision analysis agent",
+  "flow_name": "PlanogramVision",
+  "version": "1.0.0",
+  "entry_point": {
+    "module": "agent",
+    "callable": "get_answer",
+    "entry_agent": "Routing_Agent"
+  },
+  "sub_agents": [
+    {
+      "name": "Routing_Agent",
+      "type": "AssistantAgent",
+      "purpose": "Routes the user query to Count_Agent (numeric) or Generic_Agent (descriptive)."
+    },
+    {
+      "name": "Count_Agent",
+      "type": "AssistantAgent",
+      "purpose": "Deterministic per-row brand/product counts from shelf-row images."
+    },
+    {
+      "name": "Generic_Agent",
+      "type": "AssistantAgent",
+      "purpose": "Descriptive visual shelf understanding grounded in visible brand/product labels."
+    },
+    {
+      "name": "Final_Answer_Agent",
+      "type": "AssistantAgent",
+      "purpose": "Merges intermediate agent output into a final natural-language answer."
+    }
+  ],
+  "tools": [],
+  "handoff_targets": [
+    "user_proxy"
+  ],
+  "handoff_note": "user_proxy owns multimodal shelf-row image messages. Prefer PlanogramVisionChainRunner.run / get_answer as the public entrypoint.",
+  "dependencies": {
+    "python_packages": [
+      "ag2>=0.9,<1.0",
+      "openai",
+      "python-dotenv"
+    ],
+    "project_modules": [],
+    "external_resources": [
+      "Azure OpenAI vision-capable chat deployment (AZURE_OPENAI_DEPLOYMENT_NAME or GPT4_LLM_MODEL_DEPLOYMENT_NAME)",
+      "Local shelf-row image files readable from image_paths"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    {
+      "name": "AZURE_OPENAI_API_KEY",
+      "secret": true,
+      "required": true
+    },
+    {
+      "name": "AZURE_OPENAI_ENDPOINT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_BASE",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_VERSION",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "LLM_TEMPERATURE",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AGENT_WORK_DIR",
+      "secret": false,
+      "required": false
+    }
+  ],
+  "statefulness": "create_llm_orchestrator() builds a fresh GroupChat per run (multimodal history isolation). Prefer PlanogramVisionChainRunner.run / get_answer as the public entrypoint."
+}

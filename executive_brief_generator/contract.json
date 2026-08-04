@@ -1,0 +1,282 @@
+{
+  "agent_id": "executive_brief_generator_agent",
+  "description": "Message contracts for Executive Brief Generator. PDF text is extracted with PyMuPDF, then Brief_Writer emits a structured one-page executive brief as strict JSON (fenced ```json blocks are stripped by callers before json.loads).",
+  "entrypoint": "ExecutiveBriefChainRunner.run",
+  "inputs": [
+    "pdf_path",
+    "pdf_text",
+    "focus",
+    "initial_question",
+    "updated_question",
+    "analysis_type"
+  ],
+  "outputs": [
+    "title",
+    "key_points",
+    "executive_summary",
+    "word_count",
+    "page_count",
+    "source_pdf",
+    "within_length_bounds",
+    "analysis_type"
+  ],
+  "input_schema": {
+    "fields": [
+      "pdf_path",
+      "pdf_text",
+      "focus",
+      "initial_question",
+      "updated_question",
+      "analysis_type"
+    ]
+  },
+  "output_schema": {
+    "fields": [
+      "title",
+      "key_points",
+      "executive_summary",
+      "word_count",
+      "page_count",
+      "source_pdf",
+      "within_length_bounds",
+      "analysis_type"
+    ]
+  },
+  "flow_input_contract": {
+    "description": "What Executive Brief Generator expects when entered. Provide pdf_path (extracted via PyMuPDF) or pre-extracted pdf_text. focus / initial_question / updated_question optionally steer the brief.",
+    "type": "object",
+    "required": [],
+    "properties": {
+      "pdf_path": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Filesystem path to the source PDF."
+      },
+      "document_path": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Alias for pdf_path."
+      },
+      "pdf_text": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Pre-extracted PDF text; when set, extraction is skipped."
+      },
+      "focus": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Optional focus hint for the brief (e.g. a business question)."
+      },
+      "initial_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Orchestrator-friendly alias used as focus when focus is omitted."
+      },
+      "updated_question": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "When present (and focus omitted), used as the focus hint."
+      },
+      "page_count": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "description": "Optional when providing pdf_text inline."
+      },
+      "analysis_type": {
+        "type": "string",
+        "description": "Optional; echoed in runner output. Defaults to Executive-brief."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "description": "What Executive Brief Generator hands back once Brief_Writer finishes.",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "key_points": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 0,
+        "maxItems": 7
+      },
+      "executive_summary": {
+        "type": "string",
+        "description": "Narrative brief body; target 250–400 words."
+      },
+      "word_count": {
+        "type": "integer"
+      },
+      "page_count": {
+        "type": "integer"
+      },
+      "source_pdf": {
+        "type": "string"
+      },
+      "within_length_bounds": {
+        "type": "boolean",
+        "description": "True when executive_summary word_count is within 250–400."
+      },
+      "analysis_type": {
+        "type": "string"
+      }
+    }
+  },
+  "message_contracts": {
+    "Brief_Writer": {
+      "input": {
+        "type": "object",
+        "properties": {
+          "pdf_path": {
+            "type": "string"
+          },
+          "page_count": {
+            "type": "integer"
+          },
+          "focus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pdf_text": {
+            "type": "string"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": [
+          "title",
+          "key_points",
+          "executive_summary",
+          "word_count"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "key_points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executive_summary": {
+            "type": "string"
+          },
+          "word_count": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "routing_rules": {
+    "user_proxy": "-> Brief_Writer",
+    "Brief_Writer": "-> user_proxy (exits Executive Brief Generator)"
+  },
+  "package_id": "executive_brief_generator",
+  "name": "Executive Brief Generator",
+  "role": "PDF-to-executive-summary generation agent",
+  "flow_name": "ExecutiveBrief",
+  "version": "1.0.0",
+  "entry_point": {
+    "module": "agent",
+    "callable": "get_answer",
+    "entry_agent": "Brief_Writer"
+  },
+  "sub_agents": [
+    {
+      "name": "Brief_Writer",
+      "type": "AssistantAgent",
+      "purpose": "Writes a grounded one-page executive brief (title + 3–7 key points + 250–400 word summary) from extracted PDF text."
+    }
+  ],
+  "tools": [
+    {
+      "name": "extract_pdf_text",
+      "registered_on": "python",
+      "signature": "extract_pdf_text(pdf_path: str) -> dict",
+      "description": "Deterministic PDF text extraction via PyMuPDF (fitz). Returns {pdf_path, page_count, char_count, text}."
+    }
+  ],
+  "handoff_targets": [
+    "user_proxy"
+  ],
+  "handoff_note": "Single LLM stage after deterministic PDF extraction. Prefer ExecutiveBriefChainRunner.run / get_answer as the public entrypoint.",
+  "dependencies": {
+    "python_packages": [
+      "ag2>=0.9,<1.0",
+      "openai",
+      "python-dotenv",
+      "pymupdf"
+    ],
+    "project_modules": [],
+    "external_resources": [
+      "Azure OpenAI (GPT-class chat deployment via GPT4_LLM_MODEL_DEPLOYMENT_NAME or AZURE_OPENAI_DEPLOYMENT_NAME)",
+      "Readable PDF files on disk when pdf_path is used"
+    ]
+  },
+  "requires_llm_config": true,
+  "configuration_parameters": [
+    {
+      "name": "AZURE_OPENAI_API_KEY",
+      "secret": true,
+      "required": true
+    },
+    {
+      "name": "AZURE_OPENAI_ENDPOINT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_BASE",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "GPT4_LLM_MODEL_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT_NAME",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_DEPLOYMENT",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "AZURE_OPENAI_API_VERSION",
+      "secret": false,
+      "required": false
+    },
+    {
+      "name": "LLM_TEMPERATURE",
+      "secret": false,
+      "required": false
+    }
+  ],
+  "statefulness": "create_orchestrator() builds a fresh GroupChat per run. PDF extraction is deterministic and non-LLM. Prefer ExecutiveBriefChainRunner.run / get_answer as the public entrypoint."
+}
