@@ -18,6 +18,8 @@
   "planogram-vision-agent": "planogram_vision",
   "planogram_vision": "planogram_vision",
   "planogram-vision": "planogram_vision",
+  "planogram_vision_agent_chain": "planogram_vision",
+  "planogram-vision-agent-chain": "planogram_vision",
 
   "executive_brief_generator_agent": "executive_brief_generator",
   "executive-brief-generator-agent": "executive_brief_generator",
