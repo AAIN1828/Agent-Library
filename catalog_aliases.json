@@ -14,6 +14,10 @@
   "patch_generation": "patch_generation",
   "patch-generation": "patch_generation",
 
+  "full_document_generator": "full_document_generator",
+  "full-document-generator": "full_document_generator",
+  "full_document_generator_agent": "full_document_generator",
+
   "planogram_vision_agent": "planogram_vision",
   "planogram-vision-agent": "planogram_vision",
   "planogram_vision": "planogram_vision",

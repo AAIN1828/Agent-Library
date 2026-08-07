@@ -1,0 +1,112 @@
+{
+  "agent_id": "full_document_generator",
+  "description": "Generates a brand-new PDF document from scratch based on user instructions and optional document type (e.g. report, memo, contract). Unlike document_generation or patch_generation which perform in-place substring updates on existing PDFs, this agent synthesizes complete structured document content via Azure OpenAI and renders a newly minted PDF from scratch via PyMuPDF.",
+  "entrypoint": "FullDocumentGeneratorRunner.run",
+  "dispatch_output": "generated_new_pdf_document",
+  "inputs": [
+    "content",
+    "instruction",
+    "document_type",
+    "output_pdf_path"
+  ],
+  "outputs": [
+    "generated_pdf_path",
+    "title",
+    "sections",
+    "page_count",
+    "summary",
+    "dispatch_output"
+  ],
+  "input_schema": {
+    "fields": [
+      "instruction",
+      "content",
+      "document_type",
+      "output_pdf_path"
+    ]
+  },
+  "output_schema": {
+    "fields": [
+      "generated_pdf_path",
+      "title",
+      "sections",
+      "page_count",
+      "summary",
+      "dispatch_output"
+    ]
+  },
+  "flow_input_contract": {
+    "type": "object",
+    "required": [
+      "instruction"
+    ],
+    "properties": {
+      "instruction": {
+        "type": "string",
+        "description": "Natural-language instruction describing the document content, structure, and topics to generate."
+      },
+      "content": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Alias for instruction."
+      },
+      "document_type": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Optional document genre or format hint (e.g., 'technical_report', 'business_memo', 'policy_document')."
+      },
+      "output_pdf_path": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Destination path for the generated PDF document. Defaults to a timestamped filename."
+      }
+    }
+  },
+  "flow_output_contract": {
+    "type": "object",
+    "required": [
+      "generated_pdf_path",
+      "title",
+      "sections",
+      "page_count",
+      "dispatch_output"
+    ],
+    "properties": {
+      "generated_pdf_path": {
+        "type": "string",
+        "description": "Absolute filesystem path to the newly generated PDF file."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the generated document."
+      },
+      "sections": {
+        "type": "array",
+        "description": "List of section headings present in the generated document.",
+        "items": {
+          "type": "string"
+        }
+      },
+      "page_count": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Total page count of the created PDF."
+      },
+      "summary": {
+        "type": "string",
+        "description": "Executive summary of the document."
+      },
+      "dispatch_output": {
+        "type": "string",
+        "const": "generated_new_pdf_document",
+        "description": "Canonical product descriptor for this agent: newly generated PDF document from scratch."
+      }
+    }
+  }
+}
